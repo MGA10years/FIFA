@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Football Tactics Board</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --pitch-green: #0b8f3f;
+      --pitch-lines: #e8f7e8;
+      --card-bg: #111827;
+      --accent: #00e0ff;
+      --text-main: #f9fafb;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #1f2937 0, #020617 55%);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 1200px;
+      width: 100%;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(12px);
+    }
+
+    .pitch-wrapper {
+      position: relative;
+      aspect-ratio: 2 / 3;
+      border-radius: 18px;
+      overflow: hidden;
+      background: radial-gradient(circle at center, #0ea76a 0, #03643a 60%);
+      border: 4px solid #0f172a;
+    }
+
+    .pitch {
+      position: absolute;
+      inset: 6%;
+      border: 3px solid var(--pitch-lines);
+      border-radius: 18px;
+    }
+
+    .pitch::before,
+    .pitch::after {
+      content: "";
+      position: absolute;
+      border: 3px solid var(--pitch-lines);
+    }
+
+    /* 中央ライン */
+    .pitch::before {
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      transform: translateX(-50%);
+      border-radius: 0;
+      border-top: none;
+      border-bottom: none;
+    }
+
+    /* センターサークル */
+    .pitch::after {
+      width: 28%;
+      height: 28%;
+      border-radius: 50%;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .box {
+      position: absolute;
+      width: 26%;
+      height: 32%;
+      border: 3px solid var(--pitch-lines);
+    }
+
+    .box.home {
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .box.away {
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .goal {
+      position: absolute;
+      width: 18%;
+      height: 6%;
+      border: 3px solid var(--pitch-lines);
+    }
+
+    .goal.home {
+      bottom: -3%;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .goal.away {
+      top: -3%;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .player {
+      position: absolute;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #1d4ed8, #22c55e);
+      border: 3px solid #facc15;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #f9fafb;
+      font-size: 11px;
+      text-align: center;
+      cursor: grab;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
+      transition: transform 0.08s ease, box-shadow 0.08s ease;
+      touch-action: none;
+    }
+
+    .player:active {
+      cursor: grabbing;
+      transform: scale(1.05);
+      box-shadow: 0 16px 30px rgba(0, 0, 0, 0.8);
+    }
+
+    .player-number {
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 2px;
+      text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+    }
+
+    .player-name {
+      max-width: 56px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .player.gk {
+      background: linear-gradient(145deg, #f97316, #22c55e);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .toolbar-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .toolbar-title {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #9ca3af;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #1f2937;
+      color: var(--text-main);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+      transition: background 0.15s ease, transform 0.08s ease,
+        box-shadow 0.08s ease;
+    }
+
+    .btn:hover {
+      background: #374151;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #22c55e, #0ea5e9);
+      color: #0b1120;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #4ade80, #38bdf8);
+    }
+
+    .btn-danger {
+      background: #b91c1c;
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+
+    .formation-select {
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: var(--text-main);
+      font-size: 13px;
+    }
+
+    .input-name {
+      flex: 1;
+      min-width: 140px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: var(--text-main);
+      font-size: 13px;
+    }
+
+    .input-name::placeholder {
+      color: #6b7280;
+    }
+
+    .saved-list {
+      margin-top: 8px;
+      max-height: 180px;
+      overflow-y: auto;
+      border-top: 1px solid #1f2937;
+      padding-top: 8px;
+    }
+
+    .saved-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: #020617;
+      margin-bottom: 4px;
+    }
+
+    .saved-item button {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: #111827;
+      color: var(--text-main);
+    }
+
+    .saved-item button:hover {
+      background: #1f2937;
+    }
+
+    .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(34, 197, 94, 0.15);
+      color: #a7f3d0;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .logo {
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 14px;
+      color: var(--accent);
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Pitch side -->
+    <div class="panel">
+      <div class="header">
+        <div>
+          <div class="logo">TACTICS LAB</div>
+          <div class="subtitle">FIFA-style interactive formation board</div>
+        </div>
+        <span class="badge">4-3-3 / 4-2-3-1 / custom</span>
+      </div>
+      <div class="pitch-wrapper" id="pitch">
+        <div class="pitch">
+          <div class="box home"></div>
+          <div class="box away"></div>
+          <div class="goal home"></div>
+          <div class="goal away"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Control side -->
+    <div class="panel">
+      <div class="toolbar">
+        <div class="toolbar-row">
+          <span class="toolbar-title">FORMATION</span>
+        </div>
+        <div class="toolbar-row">
+          <select id="formationSelect" class="formation-select">
+            <option value="4-3-3">4-3-3</option>
+            <option value="4-2-3-1">4-2-3-1</option>
+            <option value="4-4-2">4-4-2</option>
+            <option value="3-5-2">3-5-2</option>
+          </select>
+          <button class="btn btn-primary" id="applyFormationBtn">
+            🔢 フォーメーション変更
+          </button>
+        </div>
+
+        <div class="toolbar-row">
+          <span class="toolbar-title">PLAYERS</span>
+        </div>
+        <div class="toolbar-row">
+          <input
+            id="newPlayerName"
+            class="input-name"
+            type="text"
+            placeholder="選手名を入力して追加"
+          />
+          <button class="btn" id="addPlayerBtn">👤 追加</button>
+        </div>
+        <small style="color:#9ca3af;">
+          🟢 選手をクリックすると名前変更／ドラッグで自由に移動
+        </small>
+
+        <div class="toolbar-row" style="margin-top:12px;">
+          <button class="btn btn-danger" id="resetBtn">🔄 リセット</button>
+          <button class="btn btn-primary" id="saveBtn">💾 保存</button>
+        </div>
+
+        <div class="toolbar-row" style="margin-top:4px;">
+          <span class="toolbar-title">SAVED FORMATIONS</span>
+        </div>
+        <div id="savedList" class="saved-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const pitch = document.getElementById("pitch");
+    const formationSelect = document.getElementById("formationSelect");
+    const applyFormationBtn = document.getElementById("applyFormationBtn");
+    const addPlayerBtn = document.getElementById("addPlayerBtn");
+    const newPlayerNameInput = document.getElementById("newPlayerName");
+    const resetBtn = document.getElementById("resetBtn");
+    const saveBtn = document.getElementById("saveBtn");
+    const savedList = document.getElementById("savedList");
+
+    let players = [];
+    let dragState = null;
+
+    const baseFormations = {
+      "4-3-3": [
+        { role: "GK", x: 50, y: 90 },
+        { role: "LB", x: 20, y: 75 },
+        { role: "LCB", x: 38, y: 78 },
+        { role: "RCB", x: 62, y: 78 },
+        { role: "RB", x: 80, y: 75 },
+        { role: "LCM", x: 35, y: 60 },
+        { role: "CM", x: 50, y: 55 },
+        { role: "RCM", x: 65, y: 60 },
+        { role: "LW", x: 20, y: 35 },
+        { role: "ST", x: 50, y: 30 },
+        { role: "RW", x: 80, y: 35 },
+      ],
+      "4-2-3-1": [
+        { role: "GK", x: 50, y: 90 },
+        { role: "LB", x: 20, y: 75 },
+        { role: "LCB", x: 38, y: 78 },
+        { role: "RCB", x: 62, y: 78 },
+        { role: "RB", x: 80, y: 75 },
+        { role: "LDM", x: 40, y: 65 },
+        { role: "RDM", x: 60, y: 65 },
+        { role: "LAM", x: 30, y: 50 },
+        { role: "CAM", x: 50, y: 45 },
+        { role: "RAM", x: 70, y: 50 },
+        { role: "ST", x: 50, y: 30 },
+      ],
+      "4-4-2": [
+        { role: "GK", x: 50, y: 90 },
+        { role: "LB", x: 20, y: 75 },
+        { role: "LCB", x: 38, y: 78 },
+        { role: "RCB", x: 62, y: 78 },
+        { role: "RB", x: 80, y: 75 },
+        { role: "LM", x: 20, y: 55 },
+        { role: "LCM", x: 38, y: 55 },
+        { role: "RCM", x: 62, y: 55 },
+        { role: "RM", x: 80, y: 55 },
+        { role: "LS", x: 40, y: 35 },
+        { role: "RS", x: 60, y: 35 },
+      ],
+      "3-5-2": [
+        { role: "GK", x: 50, y: 90 },
+        { role: "LCB", x: 30, y: 78 },
+        { role: "CB", x: 50, y: 80 },
+        { role: "RCB", x: 70, y: 78 },
+        { role: "LWB", x: 20, y: 60 },
+        { role: "RWB", x: 80, y: 60 },
+        { role: "LCM", x: 35, y: 55 },
+        { role: "CM", x: 50, y: 50 },
+        { role: "RCM", x: 65, y: 55 },
+        { role: "LS", x: 40, y: 35 },
+        { role: "RS", x: 60, y: 35 },
+      ],
+    };
+
+    function createPlayerElement(player) {
+      const el = document.createElement("div");
+      el.className = "player" + (player.role === "GK" ? " gk" : "");
+      el.dataset.id = player.id;
+
+      const num = document.createElement("div");
+      num.className = "player-number";
+      num.textContent = player.number ?? "";
+      el.appendChild(num);
+
+      const name = document.createElement("div");
+      name.className = "player-name";
+      name.textContent = player.name;
+      el.appendChild(name);
+
+      setPlayerPosition(el, player.x, player.y);
+
+      el.addEventListener("pointerdown", onPointerDown);
+      el.addEventListener("click", onPlayerClick);
+
+      pitch.appendChild(el);
+      player.el = el;
+    }
+
+    function setPlayerPosition(el, xPercent, yPercent) {
+      el.style.left = xPercent + "%";
+      el.style.top = yPercent + "%";
+      el.style.transform = "translate(-50%, -50%)";
+    }
+
+    function clearPlayers() {
+      players.forEach((p) => {
+        if (p.el && p.el.parentNode) {
+          p.el.parentNode.removeChild(p.el);
+        }
+      });
+      players = [];
+    }
+
+    function applyFormation(name) {
+      clearPlayers();
+      const base = baseFormations[name];
+      if (!base) return;
+
+      base.forEach((pos, index) => {
+        const player = {
+          id: "p-" + Date.now() + "-" + index,
+          name: pos.role,
+          role: pos.role,
+          number: index + 1,
+          x: pos.x,
+          y: pos.y,
+        };
+        players.push(player);
+        createPlayerElement(player);
+      });
+    }
+
+    function addPlayer(name) {
+      if (!name.trim()) return;
+      const player = {
+        id: "p-" + Date.now(),
+        name,
+        role: "CF",
+        number: players.length + 1,
+        x: 50,
+        y: 50,
+      };
+      players.push(player);
+      createPlayerElement(player);
+      newPlayerNameInput.value = "";
+    }
+
+    function onPlayerClick(e) {
+      e.stopPropagation();
+      const id = e.currentTarget.dataset.id;
+      const player = players.find((p) => p.id === id);
+      if (!player) return;
+
+      const newName = prompt("選手名を変更", player.name);
+      if (newName !== null) {
+        player.name = newName.trim() || player.name;
+        const nameEl = player.el.querySelector(".player-name");
+        if (nameEl) nameEl.textContent = player.name;
+      }
+    }
+
+    function onPointerDown(e) {
+      const el = e.currentTarget;
+      const id = el.dataset.id;
+      const player = players.find((p) => p.id === id);
+      if (!player) return;
+
+      const rect = pitch.getBoundingClientRect();
+      const startX = e.clientX;
+      const startY = e.clientY;
+
+      const style = window.getComputedStyle(el);
+      const matrix = new DOMMatrixReadOnly(
+        style.transform === "none" ? "" : style.transform
+      );
+      const currentLeft = parseFloat(el.style.left);
+      const currentTop = parseFloat(el.style.top);
+
+      dragState = {
+        player,
+        el,
+        rect,
+        startX,
+        startY,
+        currentLeft,
+        currentTop,
+      };
+
+      el.setPointerCapture(e.pointerId);
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp);
+    }
+
+    function onPointerMove(e) {
+      if (!dragState) return;
+      const dx = e.clientX - dragState.startX;
+      const dy = e.clientY - dragState.startY;
+
+      const xPercent =
+        dragState.currentLeft +
+        (dx / dragState.rect.width) * 100;
+      const yPercent =
+        dragState.currentTop +
+        (dy / dragState.rect.height) * 100;
+
+      const clampedX = Math.min(95, Math.max(5, xPercent));
+      const clampedY = Math.min(95, Math.max(5, yPercent));
+
+      dragState.player.x = clampedX;
+      dragState.player.y = clampedY;
+      setPlayerPosition(dragState.el, clampedX, clampedY);
+    }
+
+    function onPointerUp(e) {
+      if (!dragState) return;
+      dragState.el.releasePointerCapture(e.pointerId);
+      dragState = null;
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    }
+
+    function resetBoard() {
+      applyFormation(formationSelect.value);
+      localStorage.removeItem("tacticsLab_saved");
+      renderSavedList();
+    }
+
+    function saveFormation() {
+      const name =
+        prompt("フォーメーション名を入力（例：4-3-3 攻撃）") ||
+        "";
+      if (!name.trim()) return;
+
+      const data = {
+        id: "f-" + Date.now(),
+        name: name.trim(),
+        formation: formationSelect.value,
+        players: players.map((p) => ({
+          name: p.name,
+          role: p.role,
+          number: p.number,
+          x: p.x,
+          y: p.y,
+        })),
+      };
+
+      const saved = loadSaved();
+      saved.push(data);
+      localStorage.setItem("tacticsLab_saved", JSON.stringify(saved));
+      renderSavedList();
+    }
+
+    function loadSaved() {
+      const raw = localStorage.getItem("tacticsLab_saved");
+      if (!raw) return [];
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return [];
+      }
+    }
+
+    function renderSavedList() {
+      const saved = loadSaved();
+      savedList.innerHTML = "";
+      if (!saved.length) {
+        savedList.innerHTML =
+          '<span style="font-size:12px;color:#6b7280;">保存されたフォーメーションはまだありません。</span>';
+        return;
+      }
+
+      saved.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "saved-item";
+
+        const info = document.createElement("div");
+        info.textContent = item.name + " (" + item.formation + ")";
+        row.appendChild(info);
+
+        const btns = document.createElement("div");
+
+        const loadBtn = document.createElement("button");
+        loadBtn.textContent = "読み込み";
+        loadBtn.onclick = () => {
+          clearPlayers();
+          formationSelect.value = item.formation;
+          item.players.forEach((p, index) => {
+            const player = {
+              id: "p-" + Date.now() + "-" + index,
+              ...p,
+            };
+            players.push(player);
+            createPlayerElement(player);
+          });
+        };
+        btns.appendChild(loadBtn);
+
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "削除";
+        delBtn.style.marginLeft = "4px";
+        delBtn.onclick = () => {
+          const filtered = saved.filter((s) => s.id !== item.id);
+          localStorage.setItem(
+            "tacticsLab_saved",
+            JSON.stringify(filtered)
+          );
+          renderSavedList();
+        };
+        btns.appendChild(delBtn);
+
+        row.appendChild(btns);
+        savedList.appendChild(row);
+      });
+    }
+
+    applyFormationBtn.addEventListener("click", () =>
+      applyFormation(formationSelect.value)
+    );
+    addPlayerBtn.addEventListener("click", () =>
+      addPlayer(newPlayerNameInput.value)
+    );
+    newPlayerNameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") addPlayer(newPlayerNameInput.value);
+    });
+    resetBtn.addEventListener("click", resetBoard);
+    saveBtn.addEventListener("click", saveFormation);
+
+    // 初期表示
+    applyFormation(formationSelect.value);
+    renderSavedList();
+  </script>
+</body>
+</html>
